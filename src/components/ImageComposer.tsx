@@ -39,6 +39,7 @@ export function ImageComposer({ state, validationMessage, onFile, onRemove, onDr
         </div>
       </div>
       {validationMessage && <p role="alert">{validationMessage}</p>}
+      <p className="sr-only" role="status" aria-live="polite">{validationMessage ?? (state.attachment ? "Image ready to analyze." : "Choose an image to begin.")}</p>
       {state.attachment && <AttachmentCard attachment={state.attachment} onRemove={onRemove} />}
       <button type="button" onClick={onAnalyze} disabled={!state.attachment || state.phase === "uploading"}>
         Analyze image

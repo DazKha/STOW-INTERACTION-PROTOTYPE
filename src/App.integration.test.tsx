@@ -43,7 +43,7 @@ test("selects an image and shows its filename, size, and dimensions", async () =
   expect(await screen.findByText("bike.png")).toBeInTheDocument();
   expect(screen.getByText(/2 KB/i)).toBeInTheDocument();
   expect(screen.getByText(/1200 × 800/i)).toBeInTheDocument();
-  expect(screen.getByText(/ready to analyze/i)).toBeInTheDocument();
+  expect(screen.getByText("Ready to analyze")).toBeInTheDocument();
 });
 
 test("keeps the message draft when analysis starts", async () => {
@@ -71,7 +71,7 @@ test("shows a specific validation error for an unsupported file", async () => {
     target: { files: [new File(["pdf"], "document.pdf", { type: "application/pdf" })] },
   });
 
-  expect(await screen.findByText(/file type is not supported/i)).toBeInTheDocument();
+  expect(await screen.findByRole("alert")).toHaveTextContent(/file type is not supported/i);
 });
 
 test("revokes the previous preview URL when the attachment is replaced", async () => {
@@ -136,7 +136,7 @@ test("announces long wait and keeps the active recognition stage visible", async
   await selectAndAnalyze("slow");
 
   act(() => vi.advanceTimersByTime(3200));
-  expect(screen.getByRole("status")).toHaveTextContent(/taking longer than usual/i);
+  expect(screen.getByRole("status", { name: /taking longer than usual/i })).toHaveTextContent(/taking longer than usual/i);
   expect(screen.getByText(/recognizing the item/i)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /keep waiting/i })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /retry analysis/i })).toBeInTheDocument();
@@ -226,4 +226,20 @@ test("asks whether the bicycle stays intact and can be stacked above", async () 
 
   expect(screen.getByText(/will the bicycle be stored intact/i)).toBeInTheDocument();
   expect(screen.getByText(/can other items be stacked above it/i)).toBeInTheDocument();
+});
+
+test("exposes keyboard-friendly labels, live status, and recovery names", () => {
+  render(<App />);
+
+  expect(screen.getByLabelText(/choose an image/i)).toHaveAttribute("accept", expect.stringContaining("image/png"));
+  expect(screen.getByRole("status")).toHaveAttribute("aria-live", "polite");
+  expect(screen.getByRole("button", { name: /analyze image/i })).toBeInTheDocument();
+});
+
+test("renders visible focus targets for selected image removal", async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.upload(screen.getByLabelText(/choose an image/i), imageFile());
+
+  expect(screen.getByRole("button", { name: /remove selected image/i })).toBeInTheDocument();
 });
