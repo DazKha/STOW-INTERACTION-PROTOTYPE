@@ -60,6 +60,23 @@ describe("analysisReducer", () => {
     expect(retried.retryCount).toBe(1);
   });
 
+  it("restarts recognition from a long-wait state without replaying upload", () => {
+    const selected = analysisReducer(initialAnalysisState, { type: "SELECT_FILE", attachment });
+    const drafted = analysisReducer(selected, { type: "SET_DRAFT", draft: "Keep this message" });
+    const started = analysisReducer(drafted, { type: "START", runId: 1 });
+    const recognizing = analysisReducer(started, { type: "ADVANCE", runId: 1, phase: "recognizing" });
+    const waiting = analysisReducer(recognizing, { type: "SHOW_LONG_WAIT", runId: 1 });
+    const retried = analysisReducer(waiting, { type: "RETRY", runId: 2 });
+
+    expect(retried.phase).toBe("recognizing");
+    expect(retried.runId).toBe(2);
+    expect(retried.attachment).toBe(attachment);
+    expect(retried.draft).toBe("Keep this message");
+    expect(retried.uploadProgress).toBe(0);
+    expect(retried.elapsedMs).toBe(0);
+    expect(retried.longWait).toBe(false);
+  });
+
   it("never completes after cancellation from the same run", () => {
     const selected = analysisReducer(initialAnalysisState, { type: "SELECT_FILE", attachment });
     const started = analysisReducer(selected, { type: "START", runId: 1 });

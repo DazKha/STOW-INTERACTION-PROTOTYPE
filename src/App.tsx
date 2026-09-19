@@ -5,15 +5,19 @@ import { ManualDetailsForm } from "./components/ManualDetailsForm";
 import { ProgressTimeline } from "./components/ProgressTimeline";
 import { ResultCard } from "./components/ResultCard";
 import { useAnalysisSimulation } from "./hooks/useAnalysisSimulation";
+import { isProcessingPhase } from "./domain/analysisMachine";
 import { validateImageFile } from "./lib/imageValidation";
 
 export default function App() {
   const simulation = useAnalysisSimulation();
   const [validationMessage, setValidationMessage] = useState<string | null>(null);
+  const [manualConfirmation, setManualConfirmation] = useState<string | null>(null);
   const previewUrlRef = useRef<string | null>(null);
 
   const handleFile = async (file: File) => {
+    if (isProcessingPhase(simulation.state.phase)) return;
     setValidationMessage(null);
+    setManualConfirmation(null);
     try {
       const attachment = await validateImageFile(file);
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -29,11 +33,17 @@ export default function App() {
   };
 
   const handleRemove = () => {
+    if (isProcessingPhase(simulation.state.phase)) return;
     if (previewUrlRef.current) {
       URL.revokeObjectURL(previewUrlRef.current);
       previewUrlRef.current = null;
     }
     simulation.removeAttachment();
+    setManualConfirmation(null);
+  };
+
+  const handleManualSubmit = (itemName: string) => {
+    setManualConfirmation(`Details saved for manual sizing: ${itemName}.`);
   };
 
   useEffect(() => () => {
@@ -56,6 +66,7 @@ export default function App() {
         onDraft={simulation.setDraft}
         onScenario={simulation.setScenario}
         onAnalyze={simulation.start}
+        isProcessing={isProcessingPhase(simulation.state.phase)}
       />
       {(simulation.state.phase !== "idle" && simulation.state.phase !== "selected") && (
         <>
@@ -82,7 +93,12 @@ export default function App() {
               <button type="button" onClick={handleRemove}>Choose another image</button>
             </section>
           )}
-          {simulation.state.manualEntryOpen && <ManualDetailsForm />}
+          {simulation.state.manualEntryOpen && (
+            <>
+              <ManualDetailsForm onSubmit={handleManualSubmit} />
+              {manualConfirmation && <p role="status" aria-live="polite">{manualConfirmation}</p>}
+            </>
+          )}
           {simulation.state.phase === "completed" && simulation.state.result && <ResultCard result={simulation.state.result} />}
         </>
       )}

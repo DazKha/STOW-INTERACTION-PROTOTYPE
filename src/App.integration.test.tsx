@@ -131,6 +131,40 @@ test("shows elapsed time and named stages during analysis", async () => {
   expect(screen.queryByText(/% complete/i)).not.toBeInTheDocument();
 });
 
+test("disables analyze, scenario, and file replacement throughout processing", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze();
+
+  const analyze = screen.getByRole("button", { name: /analyze image/i });
+  const scenario = screen.getByLabelText(/demo scenario/i);
+  const imageInput = screen.getByLabelText(/choose an image/i);
+
+  expect(analyze).toBeDisabled();
+  expect(scenario).toBeDisabled();
+  expect(imageInput).toBeDisabled();
+
+  act(() => vi.advanceTimersByTime(400));
+  expect(screen.getByText(/checking image quality/i)).toBeInTheDocument();
+  expect(analyze).toBeDisabled();
+  expect(scenario).toBeDisabled();
+
+  act(() => vi.advanceTimersByTime(300));
+  expect(screen.getByText(/recognizing the item/i)).toBeInTheDocument();
+  expect(analyze).toBeDisabled();
+  expect(scenario).toBeDisabled();
+
+  act(() => vi.advanceTimersByTime(900));
+  expect(screen.getByText(/estimating dimensions/i)).toBeInTheDocument();
+  expect(analyze).toBeDisabled();
+  expect(scenario).toBeDisabled();
+
+  act(() => vi.advanceTimersByTime(700));
+  expect(screen.getByText(/preparing recommendation/i)).toBeInTheDocument();
+  expect(analyze).toBeDisabled();
+  expect(scenario).toBeDisabled();
+  vi.useRealTimers();
+});
+
 test("announces long wait and keeps the active recognition stage visible", async () => {
   vi.useFakeTimers();
   await selectAndAnalyze("slow");
@@ -207,6 +241,25 @@ test("opens manual entry with item name and optional dimensions", async () => {
   expect(screen.getByLabelText(/length/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/width/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/height/i)).toBeInTheDocument();
+});
+
+test("requires and saves a manual item name without rendering a simulated result", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze("failure");
+  act(() => vi.advanceTimersByTime(2500));
+  fireEvent.click(screen.getByRole("button", { name: /enter details manually/i }));
+
+  const submit = screen.getByRole("button", { name: /use these details/i });
+  expect(submit).toBeDisabled();
+  expect(screen.queryByText(/details saved for manual sizing/i)).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText(/item name/i), { target: { value: "Dining table" } });
+  expect(submit).toBeEnabled();
+  fireEvent.click(submit);
+
+  expect(screen.getByText(/details saved for manual sizing/i)).toBeInTheDocument();
+  expect(screen.queryByText(/city bicycle with basket/i)).not.toBeInTheDocument();
+  vi.useRealTimers();
 });
 
 test("marks the completed result as simulated", async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef } from "react";
-import { analysisReducer, initialAnalysisState } from "../domain/analysisMachine";
+import { analysisReducer, initialAnalysisState, isProcessingPhase } from "../domain/analysisMachine";
 import { SCENARIOS } from "../domain/scenarios";
 import type { AttachmentMeta, ScenarioName } from "../domain/analysisTypes";
 import { fixtureResult } from "../test/fixtures";
@@ -73,7 +73,7 @@ export function useAnalysisSimulation() {
 
   const start = useCallback(() => {
     const attachment = attachmentRef.current ?? stateRef.current.attachment;
-    if (!attachment) return;
+    if (!attachment || isProcessingPhase(stateRef.current.phase)) return;
     clearScheduledWork();
     const runId = Math.max(runCounter.current, stateRef.current.runId) + 1;
     runCounter.current = runId;
@@ -98,6 +98,7 @@ export function useAnalysisSimulation() {
 
   const selectAttachment = useCallback(
     (attachment: AttachmentMeta) => {
+      if (isProcessingPhase(stateRef.current.phase)) return;
       clearScheduledWork();
       attachmentRef.current = attachment;
       dispatch({ type: "SELECT_FILE", attachment });
@@ -106,6 +107,7 @@ export function useAnalysisSimulation() {
   );
 
   const removeAttachment = useCallback(() => {
+    if (isProcessingPhase(stateRef.current.phase)) return;
     clearScheduledWork();
     attachmentRef.current = null;
     dispatch({ type: "REMOVE_FILE" });
@@ -114,6 +116,7 @@ export function useAnalysisSimulation() {
   const setDraft = useCallback((draft: string) => dispatch({ type: "SET_DRAFT", draft }), []);
 
   const setScenario = useCallback((scenario: ScenarioName) => {
+    if (isProcessingPhase(stateRef.current.phase)) return;
     scenarioRef.current = scenario;
     dispatch({ type: "SET_SCENARIO", scenario });
   }, []);
@@ -125,7 +128,8 @@ export function useAnalysisSimulation() {
 
   const retry = useCallback(() => {
     const current = stateRef.current;
-    if (!current.attachment || !current.error) return;
+    if (!current.attachment) return;
+    if (current.error?.stage !== "recognition" && !(current.phase === "recognizing" && current.longWait)) return;
     clearScheduledWork();
     const runId = Math.max(runCounter.current, current.runId) + 1;
     runCounter.current = runId;
@@ -138,11 +142,24 @@ export function useAnalysisSimulation() {
   }, [clearScheduledWork, schedulePipeline]);
 
   const keepWaiting = useCallback(() => dispatch({ type: "DISMISS_LONG_WAIT" }), []);
-  const openManualEntry = useCallback(() => dispatch({ type: "OPEN_MANUAL_ENTRY" }), []);
+  const openManualEntry = useCallback(() => {
+    const current = stateRef.current;
+    if (!current.attachment) return;
+    clearScheduledWork();
+    const runId = Math.max(runCounter.current, current.runId) + 1;
+    runCounter.current = runId;
+    dispatch({ type: "OPEN_MANUAL_ENTRY", runId });
+  }, [clearScheduledWork]);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    if (["completed", "error", "cancelled", "manual_entry"].includes(state.phase)) {
+      clearScheduledWork();
+    }
+  }, [clearScheduledWork, state.phase]);
 
   useEffect(() => clearScheduledWork, [clearScheduledWork]);
 

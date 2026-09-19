@@ -8,7 +8,8 @@ export type AnalysisPhase =
   | "preparing"
   | "completed"
   | "error"
-  | "cancelled";
+  | "cancelled"
+  | "manual_entry";
 
 export type ScenarioName = "normal" | "slow" | "failure";
 
@@ -66,5 +67,5 @@ export type AnalysisEvent =
   | { type: "FAIL"; runId: number; error: AnalysisError }
   | { type: "RETRY"; runId: number }
   | { type: "CANCEL"; runId: number }
-  | { type: "OPEN_MANUAL_ENTRY" }
+  | { type: "OPEN_MANUAL_ENTRY"; runId: number }
   | { type: "COMPLETE"; runId: number; result: DemoResult };

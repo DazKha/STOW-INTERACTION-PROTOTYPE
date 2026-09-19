@@ -59,14 +59,14 @@ Validate the displayed stages against the real backend, measure actual latency p
 
 ## Live demo
 
-https://dazkha.github.io/stow-image-progress/
+https://dazkha.github.io/STOW-INTERACTION-PROTOTYPE/
 
 ## GitHub Pages deployment
 
 The workflow verifies pull requests and pushes to `main`. Only non-PR runs upload the `dist` Pages artifact and deploy it. The Vite bundle uses relative assets so it works at the repository subpath.
 
-1. Create the public repository `DazKha/stow-image-progress` without adding an unrelated initial commit.
+1. Use the public repository [`DazKha/STOW-INTERACTION-PROTOTYPE`](https://github.com/DazKha/STOW-INTERACTION-PROTOTYPE) without adding an unrelated initial commit.
 2. Add the repository as the `origin` remote in this directory.
 3. Push `main`.
 4. In repository settings, open `Pages`, choose `GitHub Actions` under Build and deployment, and save.
-5. Wait for the `Verify and deploy` workflow to finish, then open https://dazkha.github.io/stow-image-progress/.
+5. Wait for the `Verify and deploy` workflow to finish, then open https://dazkha.github.io/STOW-INTERACTION-PROTOTYPE/.
