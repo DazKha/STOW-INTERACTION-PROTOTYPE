@@ -175,3 +175,55 @@ test("shows Cancelled and never renders the result after cancel", async () => {
   expect(screen.queryByText(/city bicycle with basket/i)).not.toBeInTheDocument();
   vi.useRealTimers();
 });
+
+test("explains that upload succeeded when recognition fails", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze("failure");
+  act(() => vi.advanceTimersByTime(2500));
+
+  expect(screen.getByText(/image was received, but item recognition could not be completed/i)).toBeInTheDocument();
+  expect(screen.getByRole("alert")).toHaveTextContent(/recognition/i);
+});
+
+test("retries recognition without showing upload progress again", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze("failure");
+  act(() => vi.advanceTimersByTime(2500));
+  fireEvent.click(screen.getByRole("button", { name: /retry analysis/i }));
+
+  expect(screen.getByText(/recognizing the item/i)).toBeInTheDocument();
+  expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+  act(() => vi.advanceTimersByTime(2500));
+  expect(screen.getByText(/city bicycle with basket/i)).toBeInTheDocument();
+});
+
+test("opens manual entry with item name and optional dimensions", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze("failure");
+  act(() => vi.advanceTimersByTime(2500));
+  fireEvent.click(screen.getByRole("button", { name: /enter details manually/i }));
+
+  expect(screen.getByLabelText(/item name/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/length/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/width/i)).toBeInTheDocument();
+  expect(screen.getByLabelText(/height/i)).toBeInTheDocument();
+});
+
+test("marks the completed result as simulated", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze();
+  act(() => vi.advanceTimersByTime(4000));
+
+  expect(screen.getByText(/simulated demo output/i)).toBeInTheDocument();
+  expect(screen.getByText(/city bicycle with basket/i)).toBeInTheDocument();
+  expect(screen.getByText(/1\.10 m3/i)).toBeInTheDocument();
+});
+
+test("asks whether the bicycle stays intact and can be stacked above", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze();
+  act(() => vi.advanceTimersByTime(4000));
+
+  expect(screen.getByText(/will the bicycle be stored intact/i)).toBeInTheDocument();
+  expect(screen.getByText(/can other items be stacked above it/i)).toBeInTheDocument();
+});

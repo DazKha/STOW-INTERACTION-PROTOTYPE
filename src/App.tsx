@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { ImageComposer } from "./components/ImageComposer";
 import { LongWaitPanel } from "./components/LongWaitPanel";
+import { ManualDetailsForm } from "./components/ManualDetailsForm";
 import { ProgressTimeline } from "./components/ProgressTimeline";
+import { ResultCard } from "./components/ResultCard";
 import { useAnalysisSimulation } from "./hooks/useAnalysisSimulation";
 import { validateImageFile } from "./lib/imageValidation";
 
@@ -71,6 +73,17 @@ export default function App() {
             <button type="button" onClick={simulation.cancel} aria-label="Cancel image analysis">Cancel</button>
           )}
           {simulation.state.phase === "cancelled" && <p role="status" aria-live="polite">Cancelled. Your image and message remain available.</p>}
+          {simulation.state.phase === "error" && simulation.state.error && (
+            <section role="alert" aria-labelledby="error-heading">
+              <h2 id="error-heading">Recognition could not be completed</h2>
+              <p>{simulation.state.error.message}</p>
+              <button type="button" onClick={simulation.retry}>Retry analysis</button>
+              <button type="button" onClick={simulation.openManualEntry}>Enter details manually</button>
+              <button type="button" onClick={handleRemove}>Choose another image</button>
+            </section>
+          )}
+          {simulation.state.manualEntryOpen && <ManualDetailsForm />}
+          {simulation.state.phase === "completed" && simulation.state.result && <ResultCard result={simulation.state.result} />}
         </>
       )}
     </main>
