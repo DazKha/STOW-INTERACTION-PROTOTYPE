@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import App from "./App";
@@ -29,7 +29,10 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 test("selects an image and shows its filename, size, and dimensions", async () => {
   const user = userEvent.setup();
@@ -61,7 +64,6 @@ test("disables analyze until a valid image is selected", () => {
 });
 
 test("shows a specific validation error for an unsupported file", async () => {
-  const user = userEvent.setup();
   validateImageFile.mockRejectedValue({ error: { message: "This file type is not supported." } });
   render(<App />);
 
@@ -98,4 +100,78 @@ test("allows Normal, Slow, and Failure scenarios to be selected", async () => {
   expect(selector).toHaveValue("failure");
   await user.selectOptions(selector, "normal");
   expect(selector).toHaveValue("normal");
+});
+
+async function selectAndAnalyze(scenario = "normal") {
+  render(<App />);
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText(/demo scenario/i), { target: { value: scenario } });
+    fireEvent.change(screen.getByLabelText(/choose an image/i), { target: { files: [imageFile()] } });
+    await Promise.resolve();
+  });
+  fireEvent.click(screen.getByRole("button", { name: /analyze image/i }));
+}
+
+test("shows numeric progress only while uploading", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze();
+
+  expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
+  act(() => vi.advanceTimersByTime(80));
+  expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "20");
+});
+
+test("shows elapsed time and named stages during analysis", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze();
+
+  act(() => vi.advanceTimersByTime(700));
+  expect(screen.getByText(/checking image quality/i)).toBeInTheDocument();
+  expect(screen.getByText(/elapsed/i)).toBeInTheDocument();
+  expect(screen.queryByText(/% complete/i)).not.toBeInTheDocument();
+});
+
+test("announces long wait and keeps the active recognition stage visible", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze("slow");
+
+  act(() => vi.advanceTimersByTime(3200));
+  expect(screen.getByRole("status")).toHaveTextContent(/taking longer than usual/i);
+  expect(screen.getByText(/recognizing the item/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /keep waiting/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /retry analysis/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /cancel image analysis/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /enter details manually/i })).toBeInTheDocument();
+  vi.useRealTimers();
+});
+
+test("keeps the image and draft after retry from a long wait", async () => {
+  vi.useFakeTimers();
+  render(<App />);
+  fireEvent.change(screen.getByLabelText(/message/i), { target: { value: "Keep this draft" } });
+  await act(async () => {
+    fireEvent.change(screen.getByLabelText(/demo scenario/i), { target: { value: "slow" } });
+    fireEvent.change(screen.getByLabelText(/choose an image/i), { target: { files: [imageFile()] } });
+    await Promise.resolve();
+  });
+  fireEvent.click(screen.getByRole("button", { name: /analyze image/i }));
+  act(() => vi.advanceTimersByTime(3200));
+  fireEvent.click(screen.getByRole("button", { name: /retry analysis/i }));
+
+  expect(screen.getByText("bike.png")).toBeInTheDocument();
+  expect(screen.getByLabelText(/message/i)).toHaveValue("Keep this draft");
+  expect(screen.getByText(/recognizing the item/i)).toBeInTheDocument();
+  vi.useRealTimers();
+});
+
+test("shows Cancelled and never renders the result after cancel", async () => {
+  vi.useFakeTimers();
+  await selectAndAnalyze("slow");
+  act(() => vi.advanceTimersByTime(3200));
+  fireEvent.click(screen.getByRole("button", { name: /cancel image analysis/i }));
+  act(() => vi.runAllTimers());
+
+  expect(screen.getByText(/cancelled/i)).toBeInTheDocument();
+  expect(screen.queryByText(/city bicycle with basket/i)).not.toBeInTheDocument();
+  vi.useRealTimers();
 });

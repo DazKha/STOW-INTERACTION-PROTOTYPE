@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ImageComposer } from "./components/ImageComposer";
+import { LongWaitPanel } from "./components/LongWaitPanel";
+import { ProgressTimeline } from "./components/ProgressTimeline";
 import { useAnalysisSimulation } from "./hooks/useAnalysisSimulation";
 import { validateImageFile } from "./lib/imageValidation";
 
@@ -53,6 +55,24 @@ export default function App() {
         onScenario={simulation.setScenario}
         onAnalyze={simulation.start}
       />
+      {(simulation.state.phase !== "idle" && simulation.state.phase !== "selected") && (
+        <>
+          <ProgressTimeline state={simulation.state} />
+          {simulation.state.longWait && !simulation.state.longWaitDismissed && (
+            <LongWaitPanel
+              onKeepWaiting={simulation.keepWaiting}
+              onRetry={simulation.retry}
+              onCancel={simulation.cancel}
+              onManual={simulation.openManualEntry}
+            />
+          )}
+          {simulation.state.longWait && simulation.state.longWaitDismissed && <p role="status" aria-live="polite">Still working in the background.</p>}
+          {simulation.state.phase === "recognizing" && !simulation.state.longWait && (
+            <button type="button" onClick={simulation.cancel} aria-label="Cancel image analysis">Cancel</button>
+          )}
+          {simulation.state.phase === "cancelled" && <p role="status" aria-live="polite">Cancelled. Your image and message remain available.</p>}
+        </>
+      )}
     </main>
   );
 }
